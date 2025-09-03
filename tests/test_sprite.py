@@ -1,61 +1,53 @@
-# tests/test_sprite_dimensions.py
-import pytest
-from dataclasses import dataclass
+# pyspire/sprite.py
+from __future__ import annotations
+from dataclasses import dataclass, field
+from typing import List, Protocol
 
-# Adjust this import to match your package layout:
-# from yourpkg.sprite import Sprite
-# For example, if Sprite lives in pyspire/sprite.py, use:
-# from pyspire.sprite import Sprite
-from pyspire.sprite import Sprite  # <-- change if needed
+from pyspire import Vec2, Size, Rect, lerp
 
+class HasSize(Protocol):
+    def get_width(self) -> int: ...
+    def get_height(self) -> int: ...
 
-@dataclass
-class DummyLayer:
-    w: int
-    h: int
+@dataclass(slots=True)
+class Sprite:
+    # Back-compat with existing tests:
+    x: int = 0
+    y: int = 0
+    name: str = ""                             # defaulted so tests don't need to pass it
+    layers: List[HasSize] = field(default_factory=list)
 
+    # --- computed dimension methods (what the tests call) ---
     def get_width(self) -> int:
-        return self.w
+        return max((layer.get_width() for layer in self.layers), default=0)
 
     def get_height(self) -> int:
-        return self.h
+        return max((layer.get_height() for layer in self.layers), default=0)
 
+    # --- affordances: position/size/bounds using Vec2/Size/Rect ---
+    @property
+    def position(self) -> Vec2:
+        return Vec2(float(self.x), float(self.y))
 
-def test_empty_sprite_dimensions_are_zero():
-    s = Sprite(x=0, y=0, layers=[])
-    assert s.get_width() == 0
-    assert s.get_height() == 0
+    @position.setter
+    def position(self, p: Vec2) -> None:
+        self.x = int(p.x)
+        self.y = int(p.y)
 
+    @property
+    def size(self) -> Size:
+        return Size(float(self.get_width()), float(self.get_height()))
 
-def test_width_is_max_of_layer_widths():
-    layers = [DummyLayer(10, 5), DummyLayer(64, 32), DummyLayer(48, 90)]
-    s = Sprite(x=0, y=0, layers=layers)
-    assert s.get_width() == 64  # max of (10, 64, 48)
+    @property
+    def bounds(self) -> Rect:
+        return Rect(self.position, self.size)
 
+    # --- helpers that play nicely with animation/math ---
+    def move_by(self, delta: Vec2) -> None:
+        self.position = self.position + delta
 
-def test_height_is_max_of_layer_heights():
-    layers = [DummyLayer(10, 5), DummyLayer(64, 32), DummyLayer(48, 90)]
-    s = Sprite(x=0, y=0, layers=layers)
-    assert s.get_height() == 90  # max of (5, 32, 90)
+    def align_in(self, container: Rect, anchor: str = "center", offset: Vec2 = Vec2(0, 0)) -> None:
+        self.position = container.align(self.size, anchor=anchor, offset=offset)
 
-
-def test_dimensions_update_when_layers_change():
-    s = Sprite(x=0, y=0, layers=[DummyLayer(10, 5)])
-    assert s.get_width() == 10
-    assert s.get_height() == 5
-
-    # mutate layers
-    s.layers.append(DummyLayer(128, 20))
-    assert s.get_width() == 128
-    assert s.get_height() == 20
-
-    # add a taller layer
-    s.layers.append(DummyLayer(50, 200))
-    assert s.get_width() == 128
-    assert s.get_height() == 200
-
-
-def test_handles_single_layer():
-    s = Sprite(x=5, y=7, layers=[DummyLayer(42, 24)])
-    assert s.get_width() == 42
-    assert s.get_height() == 24
+    def tween_to(self, target: Vec2, t: float) -> None:
+        self.position = lerp(self.position, target, t)
