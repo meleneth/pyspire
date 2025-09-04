@@ -7,7 +7,7 @@ import cairocffi  # pycairo / cairocffi (whichever you’re using)
 
 from .primitives import Vec2, Size, Rect, lerp
 from .sprite_layer import SpriteLayer
-
+from .event_bus import EventBus
 
 @dataclass(slots=True)
 class Sprite:
@@ -15,6 +15,7 @@ class Sprite:
     name: str
     position: Vec2 = Vec2(0, 0)                    # replaces x,y
     layers: List[SpriteLayer] = field(default_factory=list)
+    bus: EventBus = field(default_factory=EventBus)
 
     # --- ergonomic compat so existing code can still use .x / .y ---
     @property
