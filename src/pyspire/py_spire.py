@@ -28,4 +28,4 @@ class PySpire:
         self.frame_no = self.frame_no + 1
 
     def output_filename(self) -> str:
-        return f"{self.base_filename}_{self.frame_no:06_}.png"
+        return f"{self.base_filename}_{self.frame_no:06}.png"

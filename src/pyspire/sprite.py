@@ -36,6 +36,12 @@ class Sprite:
         h = max(layer.get_height() for layer in self.layers)
         return Size(w, h)
 
+    def get_width(self) -> float:
+        return self.size.width
+
+    def get_height(self) -> float:
+        return self.size.height
+
     @property
     def bounds(self) -> Rect:
         """World-space rect of the sprite."""
