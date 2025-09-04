@@ -1,15 +1,10 @@
 #!/usr/bin/env python
-
 from pyspire import Size, Vec2, PySpire
 from pyspire.animation import BumpAnimation
 from pyspire.animation import BumpAnimationPlayer
 
-targets = {
-    "sprites": {}, "indicators": {}
-}
-
-sprites = targets["sprites"]
-indicators = targets["indicators"]
+targets = { "sprites": {}, "indicators": {} }
+sprites, indicators = targets["sprites"], targets["indicators"]
 
 animation = PySpire(size=Size(1920, 1080), base_filename="output/cmake_animation")
 
@@ -28,14 +23,11 @@ def compile_indicator_for(sprite):
     compile_sprite.position = Vec2(sprite.x, sprite.y)
     return compile_sprite
 
-make_sprite("gpp_sprite",              "program.png", "g++.png",              Vec2(50, 50))
-make_sprite("main_src_sprite",         "source.png",  "main_src.png",         Vec2(50, 300))
-make_sprite("secondary_src_sprite",    "source.png",  "secondary_src.png",    Vec2(50, 550))
-make_sprite("secondary_header_sprite", "source.png",  "secondary_header.png", Vec2(800, 550))
-make_sprite("some_program_sprite",     "source.png",  "secondary_header.png", Vec2(50, 800))
-
-def finished_handler(payload):
-    animation.done = True
+make_sprite("gpp",              "program.png", "g++.png",              Vec2(50, 50))
+make_sprite("main_src",         "source.png",  "main_src.png",         Vec2(50, 300))
+make_sprite("secondary_src",    "source.png",  "secondary_src.png",    Vec2(50, 550))
+make_sprite("secondary_header", "source.png",  "secondary_header.png", Vec2(800, 550))
+make_sprite("some_program",     "source.png",  "secondary_header.png", Vec2(50, 800))
 
 def make_bump(source, target, bus):
     bump = BumpAnimation(
@@ -47,13 +39,13 @@ def make_bump(source, target, bus):
     return bump
 
 def main_src_bump_handler(payload):
-    indicators["main_src_compile"] = compile_indicator_for(sprites["main_src_sprite"])
-    make_bump(indicators["main_src_compile"], sprites["secondary_header_sprite"], animation.bus)
+    indicators["main_src_compile"] = compile_indicator_for(sprites["main_src"])
+    make_bump(indicators["main_src_compile"], sprites["secondary_header"], animation.bus)
 
-animation.bus.on("bump_completed", finished_handler)
-sprites["main_src_sprite"].bus.on("bump", main_src_bump_handler)
+sprites["main_src"].bus.on("bump", main_src_bump_handler)
+animation.bus.on("bump_completed", lambda payload: setattr(animation, "done", True))
 
-make_bump(sprites["gpp_sprite"], sprites["main_src_sprite"], sprites["main_src_sprite"].bus)
+make_bump(sprites["gpp"], sprites["main_src"], sprites["main_src"].bus)
 
 animation.render_until_done()
 
