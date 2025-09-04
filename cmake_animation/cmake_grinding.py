@@ -1,5 +1,8 @@
+#!/usr/bin/env python
+
 from pyspire import Size, Vec2, PySpire
 from pyspire.animation import BumpAnimation
+from pyspire.animation import BumpAnimationPlayer
 
 animation = PySpire(size=Size(1920, 1080), base_filename="output/cmake_animation")
 
@@ -33,16 +36,21 @@ some_program_text_layer = some_program_sprite.add_image("some_program.png")
 some_program_text_layer.center(some_program_bg_layer)
 some_program_sprite.position = Vec2(50, 800)
 
-anim = BumpAnimation(
+def finished_handler(payload):
+    animation.done = True
+
+animation.bus.on("bump_completed", finished_handler)
+
+bump = BumpAnimation(
     gpp_sprite,
     main_src_sprite,
+    bus=animation.bus,
     fps=60,
     forward_time_s=0.5,
     hold_time_s=0.1,
     return_time_s=0.5,
 )
-
-for step in anim.frames():
-    gpp_sprite.position = Vec2(step["x"], step["y"])
-    animation.render_frame()
+bump_player = BumpAnimationPlayer(bump)
+animation.add_animation(bump_player)
+animation.render_until_done()
 

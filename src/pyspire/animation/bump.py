@@ -131,7 +131,7 @@ class BumpAnimation:
             "frame": frame_no - 1,
         }
         if self.bus is not None:
-            self.bus.publish("bump", bump_event_payload)
+            self.bus.emit("bump", bump_event_payload)
 
         # Optional hold at contact (useful for readability / emphasis)
         for _ in range(nh):
@@ -147,6 +147,9 @@ class BumpAnimation:
             ry = (sy + dy) + (sy - (sy + dy)) * a
             yield {"frame": frame_no, "x": rx, "y": ry, "event": None}
             frame_no += 1
+
+        if self.bus is not None:
+            self.bus.emit("bump_completed", bump_event_payload)
 
     def apply_in_place(self) -> None:
         """

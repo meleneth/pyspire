@@ -3,6 +3,7 @@ from .sprite_layer import SpriteLayer
 from .sprite import Sprite
 from .primitives import Vec2, Size, Rect, lerp  # <- adjust as needed
 from .py_spire import PySpire
+from .tickable import Tickable
 
 __all__ = [
     "EventBus",
@@ -12,5 +13,6 @@ __all__ = [
     "Size",
     "Rect",
     "lerp",
-    "PySpire"
+    "PySpire",
+    "Tickable"
 ]
