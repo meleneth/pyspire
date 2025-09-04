@@ -1,7 +1,5 @@
-from .bump import BumpAnimation
-from .bump_animation_player import BumpAnimationPlayer
+from .bump import Bump
 
 __all__ = [
-    "BumpAnimation",
-    "BumpAnimationPlayer"
+    "Bump"
 ]

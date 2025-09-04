@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from pyspire import Size, Vec2, PySpire
-from pyspire.animation import BumpAnimation
-from pyspire.animation import BumpAnimationPlayer
+from pyspire.animation import Bump
 
 targets = { "sprites": {}, "indicators": {} }
 sprites, indicators = targets["sprites"], targets["indicators"]
@@ -30,12 +29,11 @@ make_sprite("secondary_header", "source.png",  "secondary_header.png", Vec2(800,
 make_sprite("some_program",     "source.png",  "secondary_header.png", Vec2(50, 800))
 
 def make_bump(source, target, bus):
-    bump = BumpAnimation(
+    bump = Bump(
         source, target, bus=bus,
         fps=60, forward_time_s=0.5, hold_time_s=0.1, return_time_s=0.5,
     )
-    bump_player = BumpAnimationPlayer(bump)
-    animation.add_animation(bump_player)
+    animation.add_animation(bump)
     return bump
 
 def main_src_bump_handler(payload):
