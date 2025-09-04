@@ -4,74 +4,56 @@ from pyspire import Size, Vec2, PySpire
 from pyspire.animation import BumpAnimation
 from pyspire.animation import BumpAnimationPlayer
 
+targets = {
+    "sprites": {}, "indicators": {}
+}
+
+sprites = targets["sprites"]
+indicators = targets["indicators"]
+
 animation = PySpire(size=Size(1920, 1080), base_filename="output/cmake_animation")
 
-gpp_sprite = animation.add_sprite("gpp_sprite")
-gpp_bg_layer   = gpp_sprite.add_image("program.png")
-gpp_text_layer = gpp_sprite.add_image("g++.png")
-gpp_text_layer.center(gpp_bg_layer)        # center text over bg (layer-on-layer)
-gpp_sprite.position = Vec2(50, 50)
-
-main_src_sprite = animation.add_sprite("main_src_sprite")
-main_src_bg_layer   = main_src_sprite.add_image("source.png")
-main_src_text_layer = main_src_sprite.add_image("main_src.png")
-main_src_text_layer.center(main_src_bg_layer)
-main_src_sprite.position = Vec2(50, 300)
-
-secondary_src_sprite = animation.add_sprite("secondary_src_sprite")
-secondary_src_bg_layer   = secondary_src_sprite.add_image("source.png")
-secondary_src_text_layer = secondary_src_sprite.add_image("secondary_src.png")
-secondary_src_text_layer.center(secondary_src_bg_layer)
-secondary_src_sprite.position = Vec2(50, 550)
-
-secondary_header_sprite = animation.add_sprite("secondary_header_sprite")
-secondary_header_bg_layer   = secondary_header_sprite.add_image("source.png")
-secondary_header_text_layer = secondary_header_sprite.add_image("secondary_header.png")
-secondary_header_text_layer.center(secondary_header_bg_layer)
-secondary_header_sprite.position = Vec2(800, 550)
-
-some_program_sprite = animation.add_sprite("some_program_sprite")
-some_program_bg_layer   = some_program_sprite.add_image("program.png")
-some_program_text_layer = some_program_sprite.add_image("some_program.png")
-some_program_text_layer.center(some_program_bg_layer)
-some_program_sprite.position = Vec2(50, 800)
+def make_sprite(sprite_name, bg_image, fg_image, position):
+    new_sprite = animation.add_sprite(sprite_name)
+    bg_layer = new_sprite.add_image(bg_image)
+    text_layer = new_sprite.add_image(fg_image)
+    text_layer.center(bg_layer)
+    new_sprite.position = position
+    sprites[sprite_name] = new_sprite
+    return new_sprite
 
 def compile_indicator_for(sprite):
     compile_sprite = animation.add_sprite("compile_sprite")
-    compile_layer   = compile_sprite.add_image("compiling.png")
+    compile_layer  = compile_sprite.add_image("compiling.png")
     compile_sprite.position = Vec2(sprite.x, sprite.y)
     return compile_sprite
+
+make_sprite("gpp_sprite",              "program.png", "g++.png",              Vec2(50, 50))
+make_sprite("main_src_sprite",         "source.png",  "main_src.png",         Vec2(50, 300))
+make_sprite("secondary_src_sprite",    "source.png",  "secondary_src.png",    Vec2(50, 550))
+make_sprite("secondary_header_sprite", "source.png",  "secondary_header.png", Vec2(800, 550))
+make_sprite("some_program_sprite",     "source.png",  "secondary_header.png", Vec2(50, 800))
 
 def finished_handler(payload):
     animation.done = True
 
-def main_src_bump_handler(payload):
-    main_src_compile_indicator = compile_indicator_for(main_src_sprite)
+def make_bump(source, target, bus):
     bump = BumpAnimation(
-        main_src_compile_indicator,
-        secondary_header_sprite,
-        bus=animation.bus,
-        fps=60,
-        forward_time_s=0.5,
-        hold_time_s=0.1,
-        return_time_s=0.5,
+        source, target, bus=bus,
+        fps=60, forward_time_s=0.5, hold_time_s=0.1, return_time_s=0.5,
     )
     bump_player = BumpAnimationPlayer(bump)
     animation.add_animation(bump_player)
+    return bump
+
+def main_src_bump_handler(payload):
+    indicators["main_src_compile"] = compile_indicator_for(sprites["main_src_sprite"])
+    make_bump(indicators["main_src_compile"], sprites["secondary_header_sprite"], animation.bus)
 
 animation.bus.on("bump_completed", finished_handler)
-main_src_sprite.bus.on("bump", main_src_bump_handler)
+sprites["main_src_sprite"].bus.on("bump", main_src_bump_handler)
 
-bump = BumpAnimation(
-    gpp_sprite,
-    main_src_sprite,
-    bus=main_src_sprite.bus,
-    fps=60,
-    forward_time_s=0.5,
-    hold_time_s=0.1,
-    return_time_s=0.5,
-)
-bump_player = BumpAnimationPlayer(bump)
-animation.add_animation(bump_player)
+make_bump(sprites["gpp_sprite"], sprites["main_src_sprite"], sprites["main_src_sprite"].bus)
+
 animation.render_until_done()
 
