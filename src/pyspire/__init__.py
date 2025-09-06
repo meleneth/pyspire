@@ -4,6 +4,7 @@ from .sprite import Sprite
 from .primitives import Vec2, Size, Rect, lerp  # <- adjust as needed
 from .py_spire import PySpire
 from .tickable import Tickable
+from .animation_base import Animation
 
 __all__ = [
     "EventBus",
@@ -14,5 +15,6 @@ __all__ = [
     "Rect",
     "lerp",
     "PySpire",
-    "Tickable"
+    "Tickable",
+    "Animation"
 ]

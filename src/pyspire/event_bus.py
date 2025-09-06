@@ -43,10 +43,28 @@ class EventBus:
         if not lst:
             self._subs.pop(event, None)
 
-    # Vue-style: bus.emit('event', payload)
-    def emit(self, event: str, *args: Any, **kwargs: Any) -> None:
-        # copy to avoid issues if handlers add/remove during emit
 
-        for h in list(self._subs.get(event, ())):
-            h(*args, **kwargs)
+    def emit(self, event: str, *args: Any, **kwargs: Any) -> None:
+        handlers = list(self._subs.get(event, ()))
+
+        # If caller passed positional args, respect them verbatim.
+        if args:
+            for h in handlers:
+                h(*args, **kwargs)
+            return
+
+        # Otherwise, try common styles in order: (payload_dict) -> (**kwargs) -> ()
+        payload = dict(kwargs)
+        for h in handlers:
+            try:
+                h(payload)       # handler expects one positional dict
+                continue
+            except TypeError:
+                pass
+            try:
+                h(**payload)     # handler expects kwargs
+                continue
+            except TypeError:
+                pass
+            h()                  # handler takes no args
 
