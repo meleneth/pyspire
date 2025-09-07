@@ -19,11 +19,11 @@ class Animation:
       - subclass must implement `_updates()` generator yielding dicts of updates
       - `apply_update` applies arbitrary key/value pairs to target
     """
-    def __init__(self, name: str, target: Any, fps: int = 60, bus: Optional[EventBus] = None) -> None:
+    def __init__(self, name: str, target: Any, fps: int = 60) -> None:
         self.name = name
         self.target = target
         self.fps = int(fps)
-        self.bus = bus or EventBus()
+        self.bus = EventBus()
 
         self._started = False
         self._paused = False
@@ -65,6 +65,9 @@ class Animation:
         return self._done
 
     # ---- core ticking
+#    def tick(self, frame_no) -> None:
+#        """Legacy alias for step()."""
+#        self.step()
 
     def step(self) -> None:
         """
@@ -72,6 +75,8 @@ class Animation:
         then applies one update (or re-applies last when paused).
         """
         if self._done:
+            return
+        if self._paused:
             return
         if not self._started:
             self.start()
@@ -124,24 +129,27 @@ class Animation:
                 else:
                     object.__setattr__(self.target, k, v)
 
+    def __repr__(self) -> str:
+        state = (
+            "done" if self._done
+            else "paused" if self._paused
+            else "idle" if not self._started
+            else "running"
+        )
+        queued = sum(len(v) for v in self._scheduled.values())
+        last_keys = ",".join(sorted(self._last_update.keys())) if self._last_update else "-"
+        tgt = f"{type(self.target).__name__}@{hex(id(self.target))}"
+        return (
+            f"Animation(name='{self.name}', state='{state}', fps={self.fps}, "
+            f"frame={self._frame}, queued={queued}, last=[{last_keys}], target={tgt})"
+        )
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
+
     # ---- subclass API
 
     def _updates(self):
         raise NotImplementedError
 
-
-# Example subclass you can keep for sanity checks
-class SweepDemo(Animation):
-    """
-    Simple sweep demo: linearly moves `x` from start to start+dx over `frames`.
-    """
-    def __init__(self, name: str, target: Any, dx: int, frames: int, fps: int = 60, bus: Optional[EventBus] = None) -> None:
-        super().__init__(name, target, fps=fps, bus=bus)
-        self.dx = dx
-        self.frames = frames
-
-    def _updates(self):
-        start_x = getattr(self.target, "x", 0)
-        for i in range(1, self.frames + 1):
-            # linear interpolation per frame
-            yield {"x": start_x + round(self.dx * (i / self.frames))}

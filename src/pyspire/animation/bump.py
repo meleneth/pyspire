@@ -1,131 +1,137 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
-from math import ceil
-from typing import Callable, Dict, Generator, Optional, Any, Iterator, Tuple
 
-from pyspire import Tickable
+from math import ceil
+from typing import Any, Dict, Generator, Optional, Tuple
+
+from ..animation_base import Animation
 from .ease import ease_out_cubic, ease_in_cubic
 from .geom import Point, Vec, normalize, center_of, distance_to_touch_along
 
-class EventBusProtocol:
-    def emit(self, event: str, payload: Dict[str, Any]) -> None: ...
 
-@dataclass
-class Bump(Tickable):
-    subject: Any
-    target: Any
-    bus: Optional[EventBusProtocol] = None
+class Bump(Animation):
+    """
+    Bump animation built on Animation base.
 
-    fps: int = 60
-    forward_time_s: float = 0.10
-    hold_time_s: float    = 0.04
-    return_time_s: float  = 0.12
+    name: fixed to "bump" so lifecycle events match previous usage:
+      - bump_start, bump_paused, bump_resume, bump_completed
+    Custom events:
+      - bump_contact (fires at the moment of impact)
+    """
 
-    ease_forward: Callable[[float], float] = ease_out_cubic
-    ease_return:  Callable[[float], float] = ease_in_cubic
-    epsilon: float = 0.0
+    def __init__(
+        self,
+        subject: Any,                     # object whose x/y will be updated
+        against: Any,                     # object we move toward then away from
+        *,
+        fps: int = 60,
+        forward_time_s: float = 0.10,     # time to reach contact
+        hold_time_s: float = 0.04,        # time to stay at contact
+        return_time_s: float = 0.12,      # time to return to start
+        ease_forward = ease_out_cubic,
+        ease_return  = ease_in_cubic,
+        epsilon: float = 0.0,             # shorten travel distance by this much
+    ) -> None:
+        super().__init__(name="bump", target=subject, fps=fps)
+        self.against = against
 
-    # internal state
-    _planned: bool = field(default=False, init=False)
-    _start: Point = field(default=(0.0, 0.0), init=False)
-    _delta: Vec   = field(default=(0.0, 0.0), init=False)
-    _nf: int = field(default=0, init=False)
-    _nh: int = field(default=0, init=False)
-    _nr: int = field(default=0, init=False)
-    _iter: Optional[Iterator[Dict[str, Any]]] = field(default=None, init=False)
-    _done: bool = field(default=False, init=False)
+        self.forward_time_s = float(forward_time_s)
+        self.hold_time_s    = float(hold_time_s)
+        self.return_time_s  = float(return_time_s)
 
-    # ---------- Tickable ----------
-    def tick(self, frame_no: int) -> None:
-        if self._done:
-            return
-        if self._iter is None:
-            # single source of truth: math + bus emitting live inside frames()
-            self._iter = self.frames()
-        try:
-            step = next(self._iter)             # advance exactly one frame
-            self.subject.x = step["x"]          # mutate based on yielded coords
-            self.subject.y = step["y"]
-            # step["event"] is informational; frames() already emitted on the bus
-        except StopIteration:
-            self._done = True
+        self.ease_forward = ease_forward
+        self.ease_return  = ease_return
+        self.epsilon = float(epsilon)
 
-    @property
-    def done(self) -> bool:
-        return self._done
+        # planned values (filled lazily)
+        self._planned: bool = False
+        self._start: Point = (0.0, 0.0)
+        self._delta: Vec   = (0.0, 0.0)
+        self._nf = 0  # forward frames
+        self._nh = 0  # hold frames
+        self._nr = 0  # return frames
 
-    # ---------- test/introspection helpers ----------
-    def plan(self) -> Dict[str, Any]:
+    # ---- public helpers (useful in tests) ---------------------------------
+
+    def plan_summary(self) -> Dict[str, Any]:
+        """Expose the computed plan for tests/introspection."""
         self._ensure_plan()
         return {
             "start": self._start,
             "delta": self._delta,
             "frames": {
-                "forward": self._nf, "hold": self._nh, "return": self._nr,
+                "forward": self._nf,
+                "hold": self._nh,
+                "return": self._nr,
                 "total": self._nf + self._nh + self._nr,
             },
         }
 
-    # ---------- single source of math + events ----------
-    def frames(self) -> Generator[Dict[str, Any], None, None]:
+    # ---- Animation subclass contract --------------------------------------
+
+    def _updates(self) -> Generator[Dict[str, Any], None, None]:
         """
-        Yields per-frame dicts and emits bus events at exact moments.
-        Does NOT mutate subject; the caller chooses to apply x/y.
+        Yields dicts like {"x": ..., "y": ...} once per frame.
+        Base class will apply these to self.target and handle pause/resume.
         """
         self._ensure_plan()
         sx, sy = self._start
         dx, dy = self._delta
         nf, nh, nr = self._nf, self._nh, self._nr
 
-        frame = 0
-
-        # forward
+        # forward phase (1..nf) – ease to contact
         for i in range(1, nf + 1):
             t = i / nf
             a = self.ease_forward(t)
-            yield {"frame": frame, "x": sx + dx * a, "y": sy + dy * a, "event": None}
-            frame += 1
+            yield {"x": sx + dx * a, "y": sy + dy * a}
 
-        # contact
-        contact = {"x": sx + dx, "y": sy + dy}
-        if self.bus is not None:
-            self.bus.emit("bump", {"source": self.subject, "target": self.target,
-                                   "at": contact, "frame": frame - 1})
-        yield {"frame": frame - 1, "x": contact["x"], "y": contact["y"], "event": "bump"}
+        # contact (emit right at impact; keep position stable this frame)
+        cx, cy = sx + dx, sy + dy
+        self.bus.emit("bump_contact", {
+            "source": self.target,
+            "target": self.against,
+            "at": {"x": cx, "y": cy},
+        })
+        yield {"x": cx, "y": cy}
 
-        # hold
+        # hold phase (nh frames) – stay at contact
         for _ in range(nh):
-            yield {"frame": frame, "x": contact["x"], "y": contact["y"], "event": None}
-            frame += 1
+            yield {"x": cx, "y": cy}
 
-        # return
+        # return phase (1..nr) – ease back to start
         for i in range(1, nr + 1):
             t = i / nr
             a = self.ease_return(t)
-            rx = contact["x"] + (sx - contact["x"]) * a
-            ry = contact["y"] + (sy - contact["y"]) * a
-            yield {"frame": frame, "x": rx, "y": ry, "event": None}
-            frame += 1
+            rx = cx + (sx - cx) * a
+            ry = cy + (sy - cy) * a
+            yield {"x": rx, "y": ry}
 
-        if self.bus is not None:
-            self.bus.emit("bump_completed", {
-                "source": self.subject, "target": self.target,
-                "at": {"x": sx, "y": sy}, "frame": frame - 1
-            })
-        yield {"frame": frame - 1, "x": sx, "y": sy, "event": "bump_completed"}
+        # ensure exact start at the very end (guards against easing rounding)
+        yield {"x": sx, "y": sy}
 
-    # ---------- internals ----------
+        # StopIteration here; base will emit "bump_completed"
+
+    # ---- internals ---------------------------------------------------------
+
     def _ensure_plan(self) -> None:
         if self._planned:
             return
-        self._start = (float(self.subject.x), float(self.subject.y))
-        vhat = normalize((
-            center_of(self.target)[0] - center_of(self.subject)[0],
-            center_of(self.target)[1] - center_of(self.subject)[1],
-        ))
-        dist = max(0.0, distance_to_touch_along(self.subject, self.target, vhat) - self.epsilon)
+
+        # record starting position from the subject (the animation target)
+        sx, sy = float(getattr(self.target, "x")), float(getattr(self.target, "y"))
+        self._start = (sx, sy)
+
+        # unit direction from subject center toward against center
+        scx, scy = center_of(self.target)
+        tcx, tcy = center_of(self.against)
+        vhat = normalize((tcx - scx, tcy - scy))
+
+        # distance along vhat until subject touches against; back off epsilon
+        dist = max(0.0, distance_to_touch_along(self.target, self.against, vhat) - self.epsilon)
         self._delta = (vhat[0] * dist, vhat[1] * dist)
+
+        # frame counts
         self._nf = max(1, ceil(self.fps * self.forward_time_s))
         self._nh = max(0, ceil(self.fps * self.hold_time_s))
         self._nr = max(1, ceil(self.fps * self.return_time_s))
+
         self._planned = True

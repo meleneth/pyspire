@@ -28,7 +28,6 @@ class Sweep(Animation):
     """
     def __init__(
         self,
-        name: str,
         target: Any,
         *,
         container_width: int,
@@ -37,10 +36,9 @@ class Sweep(Animation):
         left_padding: int = 0,
         right_padding: int = 0,
         easing: Callable[[float], float] = _linear,
-        fps: int = 60,
-        bus=None,
+        fps: int = 60
     ) -> None:
-        super().__init__(name, target, fps=fps, bus=bus)
+        super().__init__("sweep", target, fps=fps)
         if frames is None and duration_s is None:
             raise ValueError("Provide either frames or duration_s for Sweep.")
         self._frames: int = int(frames if frames is not None else max(1, round(duration_s * fps)))

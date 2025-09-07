@@ -15,7 +15,6 @@ class Sprite:
     name: str
     position: Vec2 = Vec2(0, 0)                    # replaces x,y
     layers: List[SpriteLayer] = field(default_factory=list)
-    bus: EventBus = field(default_factory=EventBus)
 
     # --- ergonomic compat so existing code can still use .x / .y ---
     @property
@@ -81,6 +80,10 @@ class Sprite:
         layer.offset = local_sprite_rect.align(layer_size, anchor=anchor, offset=offset)  # requires SpriteLayer.offset: Vec2
         self.layers.append(layer)
         return layer
+
+    def replace_layer_image(self, layer_no: int, filename: str):
+        surface = cairocffi.ImageSurface.create_from_png(filename)
+        self.layers[layer_no].surface = surface
 
     # --- rendering example (using the affordances for clean math) ---
     def render(self, ctx: cairo.Context) -> None:

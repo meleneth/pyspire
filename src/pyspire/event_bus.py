@@ -1,19 +1,19 @@
-from dataclasses import dataclass
+# event_bus.py
 from collections import defaultdict
-from typing import Callable, Dict, List, Any
+from typing import Callable, Dict, List, Any, Iterable
+import traceback
 
 class EventBus:
-    def __init__(self) -> None:
-
+    def __init__(self, *, raise_on_error: bool = True, log_errors: bool = True):
         self._subs: Dict[str, List[Callable[..., Any]]] = defaultdict(list)
+        self._raise = raise_on_error
+        self._log = log_errors
 
-    # Vue-style: bus.on('event', handler)
     def on(self, event: str, handler: Callable[..., Any]) -> Callable[[], None]:
         self._subs[event].append(handler)
         def off() -> None:
             lst = self._subs.get(event)
-            if not lst:
-                return
+            if not lst: return
             try:
                 lst.remove(handler)
             except ValueError:
@@ -22,20 +22,16 @@ class EventBus:
                 self._subs.pop(event, None)
         return off
 
-    # Vue-style: bus.once('event', handler)
-
     def once(self, event: str, handler: Callable[..., Any]) -> Callable[[], None]:
-        def wrapper(*args: Any, **kwargs: Any) -> None:
+        def wrapper(**payload: Any) -> None:
             off()
-            handler(*args, **kwargs)
+            handler(**payload)
         off = self.on(event, wrapper)
         return off
 
-    # Vue-style: bus.off('event', handler)
     def off(self, event: str, handler: Callable[..., Any]) -> None:
         lst = self._subs.get(event)
-        if not lst:
-            return
+        if not lst: return
         try:
             lst.remove(handler)
         except ValueError:
@@ -43,28 +39,24 @@ class EventBus:
         if not lst:
             self._subs.pop(event, None)
 
-
     def emit(self, event: str, *args: Any, **kwargs: Any) -> None:
-        handlers = list(self._subs.get(event, ()))
+        # DEBUG: print(f"emit: {self} {event}")
+        handlers: Iterable[Callable[..., Any]] = list(self._subs.get(event, ()))
 
-        # If caller passed positional args, respect them verbatim.
+        # Normalize to kwargs only.
         if args:
-            for h in handlers:
-                h(*args, **kwargs)
-            return
+            if len(args) == 1 and isinstance(args[0], dict) and not kwargs:
+                kwargs = dict(args[0])  # support emit(event, payload_dict)
+            else:
+                # mixed/positional calling is disallowed to keep things sane
+                msg = f"EventBus.emit('{event}') does not support positional args (got {args})"
+                if self._log: print("[EventBus ERROR]", msg)
+                if self._raise: raise TypeError(msg)
+                return
 
-        # Otherwise, try common styles in order: (payload_dict) -> (**kwargs) -> ()
-        payload = dict(kwargs)
+        errors: List[str] = []
         for h in handlers:
-            try:
-                h(payload)       # handler expects one positional dict
-                continue
-            except TypeError:
-                pass
-            try:
-                h(**payload)     # handler expects kwargs
-                continue
-            except TypeError:
-                pass
-            h()                  # handler takes no args
+            h(**kwargs)
 
+        if errors and self._raise:
+            raise RuntimeError(f"{len(errors)} error(s) during emit('{event}')\n" + "\n---\n".join(errors))

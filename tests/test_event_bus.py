@@ -1,25 +1,26 @@
 # test_event_bus.py
 import pytest
-
 from typing import List, Tuple, Any
-
 from pyspire import EventBus
 
-# If EventBus lives in another module, import from there instead:
-# from your_module import EventBus
-
 class TestEventBus:
-    def test_on_and_emit_pass_args_kwargs(self):
+    def test_on_and_emit_kwargs_only(self):
         bus = EventBus()
-        seen: List[Tuple[Any, ...]] = []
+        seen: List[dict] = []
 
-        def handler(*args, **kwargs):
-            seen.append((args, kwargs))
+        def handler(**kwargs):
+            seen.append(kwargs)
 
         bus.on("ping", handler)
-        bus.emit("ping", 1, 2, a=3, b=4)
+        bus.emit("ping", a=3, b=4)
 
-        assert seen == [((1, 2), {"a": 3, "b": 4})]
+        assert seen == [{"a": 3, "b": 4}]
+
+    def test_emit_rejects_positional_args(self):
+        bus = EventBus()
+        bus.on("oops", lambda **_: None)
+        with pytest.raises(TypeError):
+            bus.emit("oops", 1, 2, a=3)
 
     def test_off_via_method_stops_delivery(self):
         bus = EventBus()
@@ -54,12 +55,12 @@ class TestEventBus:
         bus = EventBus()
         calls = {"n": 0}
 
-        def h(x):
+        def h(*, x):
             calls["n"] += x
 
         off = bus.once("one", h)  # off should be valid but unused here
-        bus.emit("one", 5)
-        bus.emit("one", 5)
+        bus.emit("one", x=5)
+        bus.emit("one", x=5)
 
         assert calls["n"] == 5
         # off() should be safe even after it already unsubscribed itself

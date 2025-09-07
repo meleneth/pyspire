@@ -37,7 +37,6 @@ def test_sweep_moves_left_to_right_exact_bounds():
     frames = 5  # 5 updates then completion on next step
 
     anim = Sweep(
-        "sweep",
         layer,
         container_width=container_w,
         frames=frames,
@@ -65,7 +64,6 @@ def test_sweep_moves_left_to_right_exact_bounds():
 def test_sweep_respects_padding():
     layer = DummyLayer(x=999, y=0, surface=DummySurface(50))  # x overwritten by animation
     anim = Sweep(
-        "sweep",
         layer,
         container_width=300,
         frames=3,
@@ -86,7 +84,7 @@ def test_sweep_respects_padding():
 def test_sweep_handles_duration_seconds_vs_frames_equivalence():
     layer = DummyLayer(x=0, y=0, surface=DummySurface(40))
     # duration 0.25s at 60fps -> round(15 frames)
-    anim = Sweep("sweep", layer, container_width=200, duration_s=0.25, fps=60)
+    anim = Sweep(layer, container_width=200, duration_s=0.25, fps=60)
     # execute all updates, count how many times x changes
     updates = 0
     last_x = None

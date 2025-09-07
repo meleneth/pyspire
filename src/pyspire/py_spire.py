@@ -32,7 +32,6 @@ class PySpire:
             anim.tick(self.frame_no)
             if anim.done:
                 self.animations.remove(anim)
-                self.bus.emit("animation.done", animation=anim)
 
         surface = cairocffi.ImageSurface(cairocffi.FORMAT_ARGB32, self.size.width, self.size.height)
         ctx = cairocffi.Context(surface)

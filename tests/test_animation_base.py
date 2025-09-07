@@ -17,7 +17,7 @@ class DummyTarget:
 class NudgeX(Animation):
     """Move x by +1 each frame for `count` frames."""
     def __init__(self, name: str, target: Any, count: int, fps: int = 60, bus: Optional[EventBus] = None) -> None:
-        super().__init__(name, target, fps=fps, bus=bus)
+        super().__init__(name, target, fps=fps)
         self.count = count
 
     def _updates(self):
@@ -29,12 +29,11 @@ class NudgeX(Animation):
 
 def test_emits_lifecycle_events_in_order():
     tgt = DummyTarget()
-    bus = EventBus()
     events: List[str] = []
+    anim = NudgeX("walk", tgt, count=3, fps=10)
     for e in ["walk_start", "walk_paused", "walk_resume", "walk_completed"]:
-        bus.on(e, lambda _p, e=e: events.append(e))
+        anim.bus.on(e, lambda e=e, **kw: events.append(e))
 
-    anim = NudgeX("walk", tgt, count=3, fps=10, bus=bus)
     anim.start()
     assert events == ["walk_start"]
 
@@ -85,11 +84,10 @@ def test_pause_keeps_last_value_and_does_not_consume_generator():
 
 def test_queue_event_in_seconds_emits_on_correct_frame():
     tgt = DummyTarget()
-    bus = EventBus()
     hits: List[int] = []
-    bus.on("marker", lambda payload: hits.append(payload["i"]))
 
-    anim = NudgeX("walk", tgt, count=5, fps=10, bus=bus)  # 10 fps
+    anim = NudgeX("walk", tgt, count=5, fps=10)  # 10 fps
+    anim.bus.on("marker", lambda **kw: hits.append(kw["i"]))
     # schedule at 0.3s -> round(0.3*10)=3 frames after current (i.e., will fire before 4th update apply)
     anim.queue_event_in(0.3, "marker", i=99)
 
