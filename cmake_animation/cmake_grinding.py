@@ -39,7 +39,7 @@ make_sprite("gpp",              "program.png", "g++.png",              Vec2(50, 
 make_sprite("main_src",         "source.png",  "main_src.png",         Vec2(50, 300))
 make_sprite("secondary_src",    "source.png",  "secondary_src.png",    Vec2(50, 550))
 make_sprite("secondary_header", "source.png",  "secondary_header.png", Vec2(800, 550))
-make_sprite("some_program",     "source.png",  "secondary_header.png", Vec2(50, 800))
+make_sprite("some_program",     "source.png",  "some_program.png", Vec2(50, 800))
 
 # predeclares for visibility
 def on_main_src_paused(*, sprite: Sprite, sweep: Sweep):
@@ -68,16 +68,18 @@ def on_main_src_paused(*, sprite: Sprite, sweep: Sweep):
     sprite.replace_layer_image(2, "compile frozen.png")
     bump.bus.on("bump_contact", lambda **kw: compile_secondary_source(sprite, sweep))
 
-# **** -> **** secondary_header compiles
+# **** -> **** secondary_header bumps main_src
 def re_bump(sprite, bump_target, notify_target):
     bump = make_bump(sprite, bump_target)
     bump.bus.on("bump_completed", lambda **kw: notify_target.toggle_paused())
+    bump.bus.on("bump_completed", lambda **kw: bump_target.replace_layer_image(2, "compiling.png"))
+    bump.bus.on("bump_completed", lambda **kw: sprite.layers.pop(2))
 
+# **** -> **** secondary_header compiles
 def compile_secondary_source(bump_target, notify_target):
     sweep = compile_indicator_for(sprites["secondary_header"])
     sweep.bus.on("sweep_completed", lambda **kw: re_bump(sprites["secondary_header"], bump_target, notify_target))
 
-# **** -> **** secondary_header bumps main_src
 # **** -> **** main_src finishes compiling
 # **** -> **** main_src bumps secondary_src
 # **** -> **** secondary_src compiles, pauses

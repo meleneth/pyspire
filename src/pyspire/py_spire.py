@@ -7,7 +7,7 @@ import cairocffi
 from .sprite import Sprite
 from .primitives import Size
 from .event_bus import EventBus
-from .tickable import Tickable
+from .animation_base import Animation
 
 @dataclass
 class PySpire:
@@ -16,7 +16,7 @@ class PySpire:
     sprites: List[Sprite] = field(default_factory=list)
     frame_no: int = 0
     bus: EventBus = field(default_factory=EventBus)
-    animations: List[Tickable] = field(default_factory=list)
+    animations: List[Animation] = field(default_factory=list)
     done: bool = False
 
     def add_sprite(self, name):
@@ -24,12 +24,12 @@ class PySpire:
         self.sprites.append(new_sprite)
         return new_sprite
 
-    def add_animation(self, a: Tickable) -> None:
+    def add_animation(self, a: Animation) -> None:
         self.animations.append(a)
 
     def render_frame(self):
         for anim in list(self.animations):  # copy so we can remove safely
-            anim.tick(self.frame_no)
+            anim.step()
             if anim.done:
                 self.animations.remove(anim)
 
