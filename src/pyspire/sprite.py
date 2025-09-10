@@ -11,10 +11,10 @@ from .event_bus import EventBus
 
 @dataclass(slots=True)
 class Sprite:
-    # NOTE: non-default fields must come first for dataclasses
     name: str
     position: Vec2 = Vec2(0, 0)                    # replaces x,y
     layers: List[SpriteLayer] = field(default_factory=list)
+    opacity: float = 1.0
 
     # --- ergonomic compat so existing code can still use .x / .y ---
     @property
@@ -92,5 +92,5 @@ class Sprite:
             px, py = tuple(self.position + layer.offset)
             ctx.save()
             ctx.set_source_surface(layer.surface, px, py)
-            ctx.paint()
+            ctx.paint_with_alpha(self.opacity * layer.opacity)
             ctx.restore()

@@ -26,6 +26,7 @@ class SpriteLayer:
     name: str = ""
     offset: Vec2 = Vec2(0, 0)
     scale: float = 1.0  # uniform scale; extend to Vec2 if you want non-uniform
+    opacity: float = 1.0
 
     # --- Back-compat sugar for code that still uses .x / .y ---
     @property
