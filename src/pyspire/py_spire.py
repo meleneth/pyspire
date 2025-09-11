@@ -43,6 +43,8 @@ class PySpire:
     def render_until_done(self):
         while not self.done:
               self.render_frame()
+              print(f"Frame: {self.frame_no}", end="\r", flush=True)
+        print(f"Frame: {self.frame_no}/{self.frame_no}")
 
     def output_filename(self) -> str:
         return f"{self.base_filename}_{self.frame_no:06}.png"

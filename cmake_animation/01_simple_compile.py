@@ -21,8 +21,8 @@ class Layer(Enum):
     TEXT=2
     COMPILING=3
 
-animation = PySpire(size=Size(1920, 1080), base_filename="output/cmake_animation")
-#animation = PySpire(size=Size(3840, 2160), base_filename="output/cmake_animation")
+#animation = PySpire(size=Size(1920, 1080), base_filename="output/cmake_animation")
+animation = PySpire(size=Size(3840, 2160), base_filename="output/cmake_animation")
 animation.bus.on("animation.done", lambda **kw: setattr(animation, "done", True))
 
 def make_program_sprite(sprite_name, bg_image, fg_image, position):
