@@ -1,35 +1,38 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
-rm -f 01_simple_compile.mkv
-rm -Rf output
-mkdir -p output
+render() {
+  local name="$1"
 
-python 01_simple_compile.py
+  echo "=== Rendering $name ==="
+  rm -f "${name}.mkv"
+  rm -rf output
+  mkdir -p output
 
-ffmpeg -hide_banner \
-  -framerate 60 -i "output/cmake_animation_%06d.png" \
-  -c:v png -pix_fmt rgba -compression_level 100 \
-  01_simple_compile.mkv
+  python "${name}.py"
 
-rm -f 02_object_compile.mkv
-rm -Rf output
-mkdir -p output
+  ffmpeg -hide_banner \
+    -framerate 60 -i "output/cmake_animation_%06d.png" \
+    -c:v png -pix_fmt rgba -compression_level 100 \
+    "${name}.mkv"
+}
 
-python 02_object_compile.py
+# All available demos
+ALL_TARGETS=(
+  01_simple_compile
+  02_object_compile
+  02_object_compile_dirty_main
+  02_object_compile_dirty_header
+  04_lib_compile
+)
 
-ffmpeg -hide_banner \
-  -framerate 60 -i "output/cmake_animation_%06d.png" \
-  -c:v png -pix_fmt rgba -compression_level 100 \
-  02_object_compile.mkv
+# If args are given, use them; otherwise run all
+if [[ $# -gt 0 ]]; then
+  TARGETS=("$@")
+else
+  TARGETS=("${ALL_TARGETS[@]}")
+fi
 
-rm -f 02_object_compile_dirty_main.mkv
-rm -Rf output
-mkdir -p output
-
-python 02_object_compile_dirty_main.py
-
-ffmpeg -hide_banner \
-  -framerate 60 -i "output/cmake_animation_%06d.png" \
-  -c:v png -pix_fmt rgba -compression_level 100 \
-  02_object_compile_dirty_main.mkv
+for t in "${TARGETS[@]}"; do
+  render "$t"
+done
