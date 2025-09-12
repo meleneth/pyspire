@@ -24,6 +24,7 @@ ALL_TARGETS=(
   02_object_compile_dirty_main
   02_object_compile_dirty_header
   04_lib_compile
+  06_tests_compile
 )
 
 # If args are given, use them; otherwise run all
